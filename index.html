@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>משחק ההחלטות: לצאת או להישאר? - מעבדת פרספטרון</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --blue:#38bdf8; --red:#fb7185; --yellow:#fde047; --card:rgba(255,255,255,0.06); --line:rgba(255,255,255,0.14); }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Rubik', 'Segoe UI', Arial, sans-serif;
+            background: radial-gradient(circle at 20% 0%, #312e81 0%, #0f172a 55%) fixed;
+            color: #e2e8f0; text-align: center; padding: 20px; margin: 0; min-height: 100vh;
+        }
+        .container { max-width: 840px; margin: 0 auto; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(56, 189, 248, 0.3); border-radius: 24px; padding: 20px; box-shadow: 0 0 50px rgba(14, 165, 233, 0.15); backdrop-filter: blur(10px); }
+        h1 {
+            font-size: 2.2rem; font-weight: 800; margin: 10px 0 6px;
+            background: linear-gradient(90deg, var(--blue), #a78bfa, var(--red));
+            -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .steps { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0 18px; }
+        .step { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 13px; }
+        .toolbar { margin: 12px 0; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        button {
+            background: linear-gradient(135deg, #0ea5e9, #6366f1); color: white; border: 2px solid transparent;
+            padding: 10px 18px; border-radius: 999px; cursor: pointer; font: 600 14px 'Rubik', Arial, sans-serif;
+            transition: transform .15s, box-shadow .15s;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(99,102,241,.45); }
+        button.active { border-color: #fff; box-shadow: 0 0 16px rgba(255,255,255,.5); }
+        #btnClass0 { background: linear-gradient(135deg, #f43f5e, #fb923c); }
+        button.danger { background: linear-gradient(135deg, #be123c, #7f1d1d); }
+        button.pred-mode { background: linear-gradient(135deg, #64748b, #334155); }
+        
+        .canvas-area { position: relative; display: inline-block; margin-top: 10px; }
+        canvas {
+            cursor: crosshair; border-radius: 16px; display: block;
+            background: #0b1020; border: 2px solid var(--line); box-shadow: 0 0 40px rgba(99,102,241,.25);
+        }
+        
+        /* תוויות ציר Y בצד שמאל של הקנבס */
+        .y-labels {
+            position: absolute; left: 10px; top: 15px; bottom: 35px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            font-size: 12px; color: var(--blue); font-weight: bold; pointer-events: none; text-align: left;
+        }
+        
+        /* תוויות ציר X משמאל (רע) לימין (מצוין) */
+        .x-labels {
+            display: flex; justify-content: space-between; width: 650px; margin: 8px auto 0 auto;
+            padding: 0 15px; font-size: 13px; color: var(--blue); font-weight: 600; direction: ltr;
+        }
+        
+        .controls-box {
+            background: var(--card); border: 1px solid var(--line); backdrop-filter: blur(6px);
+            padding: 15px; border-radius: 16px; margin-top: 15px; text-align: right;
+        }
+        .controls-box h3 { margin: 0 0 8px; }
+        .line-control {
+            background: rgba(0,0,0,.25); padding: 12px; border-radius: 12px; margin-bottom: 10px;
+            border: 1px solid var(--line); display: flex; align-items: center;
+            justify-content: space-between; flex-wrap: wrap; gap: 10px;
+        }
+        .line-control span { font-weight: 800; color: var(--yellow); }
+        .slider-group { display: inline-flex; align-items: center; gap: 6px; }
+        input[type=range] { width: 120px; vertical-align: middle; accent-color: #a78bfa; }
+        .prediction-result { font-weight: 800; font-size: 18px; margin-top: 5px; }
+        .legend-banner { display: flex; justify-content: space-around; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 12px; margin-bottom: 12px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>משחק ההחלטות: לצאת או להישאר?</h1>
+    <p style="margin-top:0; color:#94a3b8;">איזון בין תנאים בעזרת קו הפרדה (פרספטרון)</p>
+
+    <div class="steps">
+        <span class="step">1️⃣ סמנו ימים כחולים (יוצאים) ואדומים (נשארים)</span>
+        <span class="step">2️⃣ הזיזו את קו ההחלטה כך שיפריד בין המצבים</span>
+        <span class="step">3️⃣ בחרו נקודת חיזוי אפורה ובדקו את תחזית המכונה</span>
+    </div>
+
+    <div class="legend-banner">
+        <div>🌤️ ציר X: מזג אוויר (משמאל רע, מימין מצוין)</div>
+        <div>👥 ציר Y: מספר חברים זמינים (0 עד 10)</div>
+    </div>
+    
+    <div class="toolbar">
+        <button id="btnClass1" class="active" onclick="setMode(1)">יוצאים / כיף בחוץ (כחול)</button>
+        <button id="btnClass0" onclick="setMode(0)">נשארים / נוח בבית (אדום)</button>
+        <button id="btnPred" class="pred-mode" onclick="setMode('prediction')">בחר נקודת חיזוי (אפור)</button>
+        <button class="danger" onclick="clearAll()">איפוס הכל</button>
+    </div>
+
+    <div class="canvas-area">
+        <canvas id="perceptronCanvas" width="650" height="420"></canvas>
+        <!-- תוויות ציר Y בתוך האזור השמאלי של הקנבס -->
+        <div class="y-labels">
+            <span>10 חברים</span>
+            <span>8</span>
+            <span>6</span>
+            <span>4</span>
+            <span>2</span>
+            <span>0</span>
+        </div>
+    </div>
+
+    <!-- תוויות ציר X משמאל לימין (רע למצוין) -->
+    <div class="x-labels">
+        <span>🌧️ רע</span>
+        <span>🌥️ בינוני</span>
+        <span>🌤️ טוב</span>
+        <span>☀️ מצוין</span>
+    </div>
+
+    <div class="controls-box">
+        <h3>🎯 תוצאת החיזוי ליום הנבחר:</h3>
+        <div class="prediction-result" id="predictionText">טרם נבחרה נקודת חיזוי על גבי הלוח.</div>
+        <p style="font-size: 13px; color: #94a3b8; margin: 5px 0 0 0;">ניתן ללחוץ בכל מקום בלוח כדי למקם את נקודת החיזוי האפורה.</p>
+    </div>
+
+    <div style="margin-top: 15px;">
+        <button onclick="addLine()">+ הוסף קו החלטה</button>
+    </div>
+
+    <div id="linesControls" class="controls-box">
+        <h3>בקרה על קווי ההחלטה:</h3>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('perceptronCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let points = [
+        { x: 480, y: 110, class: 1, color: '#38bdf8' },
+        { x: 520, y: 150, class: 1, color: '#38bdf8' },
+        { x: 430, y: 180, class: 1, color: '#38bdf8' },
+        { x: 500, y: 220, class: 1, color: '#38bdf8' },
+        
+        { x: 180, y: 320, class: 0, color: '#fb7185' },
+        { x: 250, y: 280, class: 0, color: '#fb7185' },
+        { x: 310, y: 310, class: 0, color: '#fb7185' },
+        { x: 220, y: 220, class: 0, color: '#fb7185' }
+    ];
+    let lines = [
+        { id: 1, x: 380, angle: 135 }
+    ];
+    let predictionPoint = { x: 350, y: 210 };
+    let currentMode = 1;
+
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('btnClass1').classList.toggle('active', mode === 1);
+        document.getElementById('btnClass0').classList.toggle('active', mode === 0);
+        document.getElementById('btnPred').classList.toggle('active', mode === 'prediction');
+    }
+
+    canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+        if (currentMode === 'prediction') {
+            predictionPoint = { x: x, y: y };
+        } else {
+            const index = points.findIndex(p => Math.hypot(p.x - x, p.y - y) < 12);
+            if (index !== -1) {
+                points.splice(index, 1);
+            } else {
+                points.push({
+                    x: x,
+                    y: y,
+                    class: currentMode,
+                    color: currentMode === 1 ? '#38bdf8' : '#fb7185'
+                });
+            }
+        }
+        draw();
+    });
+
+    function addLine() {
+        lines.push({ id: lines.length + 1, x: canvas.width / 2, angle: 90 });
+        updateLinesUI();
+        draw();
+    }
+
+    function removeLine(index) {
+        lines.splice(index, 1);
+        updateLinesUI();
+        draw();
+    }
+
+    function clearAll() {
+        points = [];
+        lines = [];
+        predictionPoint = null;
+        updateLinesUI();
+        draw();
+    }
+
+    function updateLinesUI() {
+        const container = document.getElementById('linesControls');
+        container.innerHTML = '<h3>בקרה על קווי ההחלטה:</h3>';
+        
+        if (lines.length === 0) {
+            container.innerHTML += '<p>אין קווים פעילים. לחצו על "+ הוסף קו החלטה".</p>';
+            return;
+        }
+
+        lines.forEach((line, index) => {
+            container.innerHTML += `
+                <div class="line-control">
+                    <span>קו החלטה ${index + 1}</span>
+                    <div class="slider-group">
+                        <label>מיקום X:</label>
+                        <input type="range" min="0" max="${canvas.width}" value="${line.x}" oninput="updateLineParam(${index}, 'x', this.value)">
+                    </div>
+                    <div class="slider-group">
+                        <label>זווית (°):</label>
+                        <input type="range" min="0" max="180" value="${line.angle}" oninput="updateLineParam(${index}, 'angle', this.value)">
+                    </div>
+                    <button class="danger" style="padding: 5px 10px; font-size:12px;" onclick="removeLine(${index})">מחק קו</button>
+                </div>
+            `;
+        });
+    }
+
+    function updateLineParam(index, param, value) {
+        lines[index][param] = parseFloat(value);
+        draw();
+    }
+
+    function getSignedDistance(px, py, line) {
+        let rad = (line.angle - 90) * Math.PI / 180;
+        let cx = line.x;
+        let cy = canvas.height / 2;
+        let nx = Math.cos(rad);
+        let ny = Math.sin(rad);
+        return (px - cx) * nx + (py - cy) * ny;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // רשת רקע טכנולוגית
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        for (let gx = 0; gx <= canvas.width; gx += 45) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, canvas.height); ctx.stroke(); }
+        for (let gy = 0; gy <= canvas.height; gy += 42) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke(); }
+
+        let blueIsPositive = true;
+        if (lines.length > 0) {
+            const line = lines[0];
+            let bSum = 0, bN = 0, rSum = 0, rN = 0;
+            points.forEach(p => {
+                const d = getSignedDistance(p.x, p.y, line);
+                if (p.class === 1) { bSum += d; bN++; } else { rSum += d; rN++; }
+            });
+            if (bN && rN) blueIsPositive = (bSum / bN) >= (rSum / rN);
+            else if (bN) blueIsPositive = (bSum / bN) >= 0;
+            else if (rN) blueIsPositive = (rSum / rN) <= 0;
+        }
+
+        // צביעת רקע חצאי המישור
+        if (lines.length > 0) {
+            const line = lines[0];
+            const rad = (line.angle - 90) * Math.PI / 180;
+            const length = Math.hypot(canvas.width, canvas.height) * 2;
+            const BLUE_BG = 'rgba(56, 189, 248, 0.22)';
+            const RED_BG = 'rgba(251, 113, 133, 0.22)';
+
+            ctx.save();
+            ctx.translate(line.x, canvas.height / 2);
+            ctx.rotate(rad);
+
+            ctx.fillStyle = blueIsPositive ? RED_BG : BLUE_BG;
+            ctx.fillRect(-length, -length, length, length * 2);
+
+            ctx.fillStyle = blueIsPositive ? BLUE_BG : RED_BG;
+            ctx.fillRect(0, -length, length, length * 2);
+
+            ctx.restore();
+        }
+
+        // ציור קווי ההחלטה
+        lines.forEach((line, index) => {
+            ctx.save();
+            ctx.translate(line.x, canvas.height / 2);
+            ctx.rotate((line.angle - 90) * Math.PI / 180);
+
+            ctx.beginPath();
+            ctx.moveTo(0, -canvas.height * 2);
+            ctx.lineTo(0, canvas.height * 2);
+            ctx.strokeStyle = index === 0 ? '#fde047' : '#fb923c';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([6, 6]);
+            ctx.stroke();
+            
+            if(index === 0) {
+                ctx.fillStyle = '#fde047';
+                ctx.font = 'bold 13px Rubik, sans-serif';
+                ctx.fillText('גבול ההחלטה (איזון תנאים)', 10, -20);
+            }
+
+            ctx.restore();
+        });
+
+        // ציור נקודות האימון
+        points.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 12;
+            ctx.fillStyle = p.color;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        });
+
+        // חיזוי נקודה אפורה
+        if (predictionPoint !== null) {
+            if (lines.length === 0) {
+                document.getElementById('predictionText').innerHTML = 'נקודת החיזוי הוצבה. יש להוסיף קו החלטה כדי לבצע חישוב.';
+                
+                ctx.beginPath();
+                ctx.arc(predictionPoint.x, predictionPoint.y, 14, 0, Math.PI * 2);
+                ctx.fillStyle = '#94a3b8';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.stroke();
+            } else {
+                let line = lines[0];
+                let dist = getSignedDistance(predictionPoint.x, predictionPoint.y, line);
+                
+                let isBlue = blueIsPositive ? (dist > 0) : (dist <= 0);
+                let predColor = isBlue ? '#38bdf8' : '#fb7185';
+                let predClassText = isBlue ? '🏃 יוצאים לטייל! (כיף בחוץ)' : '🛋️ נשארים בבית (נוח בבית)';
+
+                document.getElementById('predictionText').innerHTML = 
+                    `תוצאת תחזית למצב הנבחר: <span style="color:${predColor}">${predClassText}</span>`;
+
+                ctx.beginPath();
+                ctx.arc(predictionPoint.x, predictionPoint.y, 14, 0, Math.PI * 2);
+                ctx.fillStyle = '#94a3b8';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = predColor;
+                ctx.stroke();
+            }
+        } else {
+            document.getElementById('predictionText').innerHTML = 'טרם נבחרה נקודת חיזוי.';
+        }
+    }
+
+    updateLinesUI();
+    draw();
+</script>
+
+</body>
+</html>
